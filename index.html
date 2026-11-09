@@ -182,7 +182,7 @@ table.log thead th{font-size:16px}
         <div class="grid2" style="margin-top:10px">
           <label class="f"><span>교시 (선택)</span><input id="lgPeriod" placeholder="예: 2교시"></label>
           <label class="f"><span>출결</span><select id="lgAtt"><option>출석</option><option>결석</option></select></label>
-          <label class="f wide"><span>오늘 쓴 교재</span><input id="lgBook" placeholder="예: 최상위 라이트 중 1-2"></label>
+          <label class="f wide"><span>이달 교재 (월별 1개)</span><input id="lgBook" placeholder="예: 최상위 라이트 중 1-2"></label>
           <label class="f"><span>진도</span><textarea id="lgProgress" rows="3"></textarea></label>
           <label class="f"><span>숙제</span><textarea id="lgHomework" rows="3"></textarea></label>
           <label class="f wide"><span>수업태도/집중도 및 특이사항</span><textarea id="lgNote" rows="3"></textarea></label>
@@ -510,8 +510,8 @@ table.log thead th{font-size:16px}
   /* ================= daily log ================= */
   var SCI=['#sc0','#sc1','#sc2','#sc3'];
   function findLog(sid,date){return DB.logs.filter(function(l){return l.studentId===sid&&l.date===date})[0]}
-  function lastBook(sid,date){
-    var ls=DB.logs.filter(function(l){return l.studentId===sid&&l.book&&l.date<date}).sort(function(a,b){return a.date<b.date?1:-1});
+  function monthBook(sid,date){
+    var ls=DB.logs.filter(function(l){return l.studentId===sid&&l.book&&l.date.slice(0,7)===date.slice(0,7)}).sort(function(a,b){return a.date<b.date?1:-1});
     return ls[0]?ls[0].book:'';
   }
   function setScoreDisabled(){
@@ -528,7 +528,7 @@ table.log thead th{font-size:16px}
     var l=date?findLog(sid,date):null;
     $('#lgPeriod').value=l?l.period||'':'';
     $('#lgAtt').value=l?l.att||'출석':'출석';
-    $('#lgBook').value=l?l.book||'':lastBook(sid,date);
+    $('#lgBook').value=monthBook(sid,date);
     $('#lgProgress').value=l?l.progress||'':'';
     $('#lgHomework').value=l?l.homework||'':'';
     $('#lgNote').value=l?l.note||'':'';
@@ -567,6 +567,7 @@ table.log thead th{font-size:16px}
       progress:$('#lgProgress').value.trim(),homework:$('#lgHomework').value.trim(),note:$('#lgNote').value.trim(),scores:scores};
     var l=findLog(sid,date);
     if(l)Object.assign(l,o);else DB.logs.push(Object.assign({id:uid()},o));
+    DB.logs.forEach(function(x){if(x.studentId===sid&&x.date.slice(0,7)===date.slice(0,7))x.book=o.book});
     commit();loadLogForm();toast('기록을 저장했어요');
   });
   $('#lgDelete').addEventListener('click',function(){
