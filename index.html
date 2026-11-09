@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>학습 기록 · 안내문 만들기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --surface2:#eef2f7; --text:#1d2733; --muted:#5d6b7c; --line:#d5dce6;
+  --accent:#00569f; --accent-text:#ffffff; --danger:#b3261e; --stage:#dfe5ec; --ok:#1b7f4b;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --bg:#12171d; --surface:#1b222b; --surface2:#242d38; --text:#e8edf3; --muted:#9aa8b8; --line:#34404d;
+    --accent:#6db3f2; --accent-text:#0b1b2b; --danger:#ff8a80; --stage:#0d1116; --ok:#6fd49b;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;line-height:1.5}
+
+/* ---------- chrome ---------- */
+.bar{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:8px 16px;flex-wrap:wrap}
+.bar h1{font-size:17px;margin:0;font-weight:800}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{font:inherit;font-weight:700;border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:8px;cursor:pointer}
+.tab:hover{background:var(--surface2)}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-text)}
+.savestat{margin-left:auto;font-size:13px;color:var(--muted)}
+.savestat.ok{color:var(--ok)}
+.btn{font:inherit;font-weight:700;border:1px solid var(--line);background:var(--surface2);color:var(--text);padding:8px 14px;border-radius:8px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.btn.primary:disabled{opacity:.6;cursor:wait}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.view{display:none}
+.view.on{display:block}
+.narrow{max-width:900px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.fs{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.fs h2{font-size:15px;margin:0 0 10px;font-weight:800}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.f{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted);min-width:0}
+.f.wide{grid-column:1/-1}
+input,textarea,select{font:inherit;font-size:15px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+textarea{resize:vertical;line-height:1.45}
+input:disabled{opacity:.5}
+.hint{font-size:12.5px;color:var(--muted);margin:6px 0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}
+.list{display:flex;flex-direction:column;gap:6px}
+.item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface2)}
+.item.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.item .grow{flex:1;min-width:0}
+.item .sub{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--surface);border:1px solid var(--line)}
+.tag.abs{color:var(--danger);border-color:var(--danger)}
+.status{font-size:13px;font-weight:700;color:var(--accent)}
+.layout{display:grid;grid-template-columns:minmax(340px,440px) 1fr;align-items:start}
+.form{padding:16px;display:flex;flex-direction:column;gap:14px}
+.stagewrap{padding:16px;position:sticky;top:58px}
+#stage{background:var(--stage);border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;max-height:calc(100vh - 100px)}
+#wrap{position:relative;margin:0 auto;overflow:hidden}
+#scaler{position:absolute;left:0;top:0;transform-origin:0 0;width:1122px}
+.check{display:flex;align-items:center;gap:8px;font-size:14px}
+.check input{width:auto}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:700;z-index:50;display:none;max-width:90vw}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:60;display:none;align-items:center;justify-content:center;padding:20px;flex-direction:column;gap:12px}
+.modal img{max-width:100%;max-height:78vh;background:#fff;border-radius:6px}
+.modal p{color:#fff;margin:0;text-align:center}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .stagewrap{position:static;padding-top:0;order:-1}
+  #stage{max-height:none}
+  .grid4{grid-template-columns:1fr 1fr}
+}
+
+/* ---------- the report (fixed look, 1122px wide) ---------- */
+#page{width:1122px;min-height:1587px;background:#f2f3f5;position:relative;font-family:'Noto Sans KR',sans-serif;color:#222;padding-bottom:40px;line-height:1.35;background-image:radial-gradient(#e6e8ec 1px,transparent 1px);background-size:6px 6px}
+#page *{box-sizing:border-box}
+.hd{height:262px;background:#00569f;position:relative;color:#fff}
+.hd .top{height:73px;border-bottom:2px solid #8fb8dd;display:flex;align-items:center;justify-content:space-between;padding:0 62px 0 385px;font-weight:700}
+.hd .center{font-size:29px;letter-spacing:2px;font-weight:800}
+.hd .sent{font-size:27px;font-weight:400}
+.hd .title{position:absolute;left:0;right:0;top:92px;text-align:center;font-family:'Jua','Noto Sans KR',sans-serif;font-size:84px;color:#ffc400;text-shadow:0 4px 0 #d69a00;line-height:1.1}
+.hd .coach{position:absolute;left:0;right:0;top:200px;text-align:center;font-size:34px;font-weight:500}
+.hd svg.wave{position:absolute;left:0;bottom:-13px;width:1122px;height:14px}
+.hd svg.bunting{position:absolute;left:0;top:73px}
+.hd svg.kids{position:absolute;right:6px;top:118px}
+.main{display:grid;grid-template-columns:642px 382px;gap:36px;padding:14px 32px 0 30px;align-items:start}
+.sec{position:relative;background:#fff6d1;border-radius:28px;margin-top:64px;padding:58px 0 0;overflow:visible}
+.pill{position:absolute;top:-36px;left:18px;width:608px;height:80px;background:#ffcd00;border-radius:999px;font-size:38px;font-weight:800;display:flex;align-items:center;padding-left:66px;color:#222}
+table.log{width:100%;border-collapse:collapse;font-size:15px;table-layout:fixed}
+table.log th,table.log td{border:1px solid #f0b800;padding:9px 8px;vertical-align:middle;white-space:pre-line;word-break:keep-all;overflow-wrap:anywhere}
+table.log th{background:#ffc800;font-weight:500;text-align:center}
+table.log td{background:#fff}
+table.log td.c{text-align:center}
+table.log tr.bk td{background:#ffc800;text-align:center}
+table.log thead th{font-size:16px}
+.fb{padding:58px 6px 22px;font-size:23px;line-height:1.45;white-space:pre-line;word-break:keep-all;overflow-wrap:anywhere}
+.fb p{margin:0 0 .9em}
+.fb p:last-child{margin-bottom:0}
+.right{display:flex;flex-direction:column;gap:38px;margin-top:-4px}
+.card{background:#c8e1f6;border-radius:28px;padding:22px 0 28px}
+.rib{background:#00569f;color:#fff;height:64px;width:344px;display:flex;align-items:center;gap:14px;padding-left:16px;font-size:35px;font-weight:500;clip-path:polygon(0 0,calc(100% - 30px) 0,100% 50%,calc(100% - 30px) 100%,0 100%);margin-bottom:12px}
+.card .body{padding:0 14px 0 10px}
+.stu div{font-size:26px;line-height:47px;white-space:pre-line}
+.exam{text-align:center;font-size:26px;line-height:1.3;padding-top:4px}
+.exam b{font-weight:800}
+.exam .big{font-size:38px;font-weight:800;line-height:1.5}
+.exam .rng{padding:0 6px}
+.ev .b{font-size:26px;font-weight:800;line-height:1.5}
+.ev .sc{font-size:30px;line-height:1.2;margin-top:40px;white-space:nowrap}
+.ev .sc:first-of-type{margin-top:30px}
+.ev .sc em{font-style:normal;margin-left:14px}
+.ev .smile{text-align:center;font-size:26px;margin-top:34px}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <h1>학습 기록 · 안내문</h1>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="students">학생</button>
+    <button class="tab" role="tab" data-tab="log">매일 기록</button>
+    <button class="tab" role="tab" data-tab="report">월말 안내문</button>
+    <button class="tab" role="tab" data-tab="data">데이터</button>
+  </nav>
+  <span class="savestat" id="savestat">저장됨</span>
+</header>
+
+<!-- ============ 학생 ============ -->
+<section class="view" id="v-students">
+  <div class="narrow">
+    <div class="fs">
+      <h2>센터 설정</h2>
+      <div class="grid2">
+        <label class="f"><span>센터 이름 (안내문 맨 위)</span><input id="stCenter"></label>
+        <label class="f"><span>담당 코치</span><input id="stCoach"></label>
+      </div>
+    </div>
+    <div class="fs">
+      <h2 id="stFormTitle">학생 등록</h2>
+      <div class="grid2">
+        <label class="f"><span>이름</span><input id="stName"></label>
+        <label class="f"><span>학교</span><input id="stSchool"></label>
+        <label class="f"><span>학년</span><input id="stGrade" placeholder="예: 1학년"></label>
+        <label class="f"><span>과목</span><input id="stSubject" placeholder="예: 수학"></label>
+        <label class="f wide"><span>등원 정보</span><input id="stSchedule" placeholder="예: 화, 목"></label>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="stSave" type="button">저장</button>
+        <button class="btn" id="stCancel" type="button" style="display:none">수정 취소</button>
+      </div>
+    </div>
+    <div class="fs">
+      <h2>학생 목록</h2>
+      <div class="list" id="stList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 매일 기록 ============ -->
+<section class="view" id="v-log">
+  <div class="narrow">
+    <div id="lgEmpty" class="empty" style="display:none">먼저 [학생] 탭에서 학생을 등록해 주세요.</div>
+    <div id="lgBody">
+      <div class="fs">
+        <h2>수업 기록</h2>
+        <div class="grid2">
+          <label class="f"><span>학생</span><select id="lgStudent"></select></label>
+          <label class="f"><span>날짜</span><input type="date" id="lgDate"></label>
+        </div>
+        <p class="status" id="lgStatus" style="margin:10px 0 0"></p>
+        <div class="grid2" style="margin-top:10px">
+          <label class="f"><span>교시 (선택)</span><input id="lgPeriod" placeholder="예: 2교시"></label>
+          <label class="f"><span>출결</span><select id="lgAtt"><option>출석</option><option>결석</option></select></label>
+          <label class="f wide"><span>오늘 쓴 교재</span><input id="lgBook" placeholder="예: 최상위 라이트 중 1-2"></label>
+          <label class="f"><span>진도</span><textarea id="lgProgress" rows="3"></textarea></label>
+          <label class="f"><span>숙제</span><textarea id="lgHomework" rows="3"></textarea></label>
+          <label class="f wide"><span>수업태도/집중도 및 특이사항</span><textarea id="lgNote" rows="3"></textarea></label>
+        </div>
+        <p class="hint" style="margin-top:14px">오늘 점수 (0~10점, 월말에 평균이 안내문에 들어가요)</p>
+        <div class="grid4">
+          <label class="f"><span>수업태도</span><input type="number" step="0.5" min="0" max="10" id="sc0"></label>
+          <label class="f"><span>학습이해</span><input type="number" step="0.5" min="0" max="10" id="sc1"></label>
+          <label class="f"><span>과제해결</span><input type="number" step="0.5" min="0" max="10" id="sc2"></label>
+          <label class="f"><span>암기</span><input type="number" step="0.5" min="0" max="10" id="sc3"></label>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="lgSave" type="button">기록 저장</button>
+          <button class="btn danger" id="lgDelete" type="button" style="display:none">이 기록 삭제</button>
+        </div>
+      </div>
+      <div class="fs" style="margin-top:14px">
+        <h2 id="lgListTitle">이번 달 기록</h2>
+        <div class="list" id="lgList"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 월말 안내문 ============ -->
+<section class="view" id="v-report">
+  <div id="rpEmpty" class="narrow" style="display:none"><div class="empty">먼저 [학생] 탭에서 학생을 등록해 주세요.</div></div>
+  <div class="layout" id="rpBody">
+    <div class="form">
+      <div class="fs">
+        <h2>안내문 대상</h2>
+        <div class="grid2">
+          <label class="f"><span>학생</span><select id="rpStudent"></select></label>
+          <label class="f"><span>월</span><input type="month" id="rpMonth"></label>
+        </div>
+        <p class="hint">학습 일지 표는 매일 기록에서 자동으로 채워져요. 아래 값은 자동 계산되고, 고치면 고친 값이 쓰여요.</p>
+        <div class="actions" style="margin-top:6px">
+          <button class="btn small" id="rpAuto" type="button">자동값으로 되돌리기</button>
+          <label class="check"><input type="checkbox" id="a4" checked> A4 높이 유지</label>
+        </div>
+      </div>
+      <div class="fs">
+        <h2>머리말 · 교재</h2>
+        <div class="grid2">
+          <label class="f"><span>발송일</span><input data-rf="sendDate"></label>
+          <label class="f wide"><span>수업 교재</span><textarea rows="2" data-rf="books"></textarea></label>
+        </div>
+      </div>
+      <div class="fs">
+        <h2>월 평가 결과</h2>
+        <div class="grid2">
+          <label class="f"><span>평가 시행일</span><input data-rf="examDate" placeholder="예: 10월 29일"></label>
+          <label class="f"><span>난이도</span><input data-rf="examLevel" placeholder="예: 중~중상"></label>
+          <label class="f wide"><span>평가 범위</span><textarea rows="2" data-rf="examRange"></textarea></label>
+          <label class="f"><span>점수</span><input data-rf="examScore"></label>
+          <label class="f"><span>만점</span><input data-rf="examMax"></label>
+        </div>
+      </div>
+      <div class="fs">
+        <h2>학습 평가</h2>
+        <div class="grid2">
+          <label class="f"><span>수업일수</span><input data-rf="days"></label>
+          <label class="f"><span>출석</span><input data-rf="present"></label>
+          <label class="f"><span>결석</span><input data-rf="absent"></label>
+        </div>
+        <p class="hint" style="margin-top:12px">점수 (매일 기록의 평균, 10점 만점)</p>
+        <div class="grid2">
+          <label class="f"><span>수업태도</span><input data-rf="s0"></label>
+          <label class="f"><span>학습이해</span><input data-rf="s1"></label>
+          <label class="f"><span>과제해결</span><input data-rf="s2"></label>
+          <label class="f"><span>암기</span><input data-rf="s3"></label>
+        </div>
+      </div>
+      <div class="fs">
+        <h2>학습 피드백</h2>
+        <div class="grid2">
+          <label class="f wide"><span>이달의 목표</span><textarea rows="2" data-rf="goal"></textarea></label>
+          <label class="f wide"><span>잘한 점</span><textarea rows="5" data-rf="good"></textarea></label>
+          <label class="f wide"><span>개선할 점</span><textarea rows="5" data-rf="improve"></textarea></label>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:0">
+        <button class="btn primary" id="save" type="button">이미지로 저장</button>
+        <button class="btn" id="openImg" type="button">이미지 열어서 저장</button>
+      </div>
+    </div>
+    <div class="stagewrap">
+      <div id="stage"><div id="wrap"><div id="scaler"><div id="page"></div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 데이터 ============ -->
+<section class="view" id="v-data">
+  <div class="narrow">
+    <div class="fs">
+      <h2>현재 데이터</h2>
+      <p id="dtCount" style="margin:0"></p>
+      <p class="hint">모든 내용은 이 브라우저에 자동 저장돼요. 브라우저 데이터를 지우거나 다른 기기에서 열면 보이지 않으니, 아래 방법으로 파일에도 보관하세요.</p>
+    </div>
+    <div class="fs" id="dtFS">
+      <h2>파일에 자동 저장 (크롬, 엣지)</h2>
+      <p class="hint">저장할 파일을 한 번 지정하면, 이후 바뀔 때마다 그 파일에 바로 저장돼요.</p>
+      <p id="dtFileName" class="status" style="margin:0 0 8px"></p>
+      <div class="actions" style="margin-top:0">
+        <button class="btn primary" id="fsNew" type="button">새 파일 만들어 연결</button>
+        <button class="btn" id="fsOpen" type="button">기존 파일 열어 연결</button>
+        <button class="btn" id="fsRe" type="button" style="display:none">이전 파일 다시 연결</button>
+      </div>
+    </div>
+    <div class="fs">
+      <h2>내보내기 · 불러오기</h2>
+      <p class="hint">내보낸 .json 파일은 백업으로 보관하세요. 불러오면 현재 내용이 파일 내용으로 바뀌어요. (바뀌기 전 내용은 이 브라우저에 한 번 백업돼요.)</p>
+      <div class="actions" style="margin-top:0">
+        <button class="btn primary" id="dtExport" type="button">파일로 내보내기</button>
+        <button class="btn" id="dtImportBtn" type="button">파일 불러오기</button>
+        <input type="file" id="dtImport" accept=".json,application/json" style="display:none">
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status"></div>
+<div class="modal" id="modal">
+  <p>이미지를 길게 누르거나 오른쪽 클릭해서 저장하세요.</p>
+  <img id="modalImg" alt="완성된 학습 안내문">
+  <button class="btn" type="button" id="modalClose">닫기</button>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var LS='wawa-study-db-v1', BK='wawa-study-db-backup';
+  var LABELS=['수업태도','학습이해','과제해결','암기'];
+  var SK=['s0','s1','s2','s3'];
+  var AUTO=['books','days','present','absent','s0','s1','s2','s3'];
+
+  function $(s,r){return (r||document).querySelector(s)}
+  function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+  function pad(n){return (n<10?'0':'')+n}
+  function todayISO(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+  function todayKo(){var d=new Date();return String(d.getFullYear()).slice(2)+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일'}
+  function fd(iso){var p=iso.split('-');return (+p[1])+'/'+(+p[2])}
+  function fmt(n){return String(Math.round(n*10)/10)}
+
+  /* ================= data ================= */
+  function emptyDB(){return {version:1,updatedAt:0,settings:{center:'',coach:''},students:[],logs:[],reports:{}}}
+  function normalize(o){
+    if(!o||typeof o!=='object') return null;
+    if(!Array.isArray(o.students)&&!Array.isArray(o.logs)) return null;
+    var d=emptyDB();
+    d.updatedAt=+o.updatedAt||0;
+    d.settings=Object.assign(d.settings,o.settings||{});
+    d.students=Array.isArray(o.students)?o.students:[];
+    d.logs=Array.isArray(o.logs)?o.logs:[];
+    d.reports=(o.reports&&typeof o.reports==='object')?o.reports:{};
+    return d;
+  }
+  var DB=emptyDB();
+  try{var raw=localStorage.getItem(LS); if(raw){var n=normalize(JSON.parse(raw)); if(n) DB=n;}}catch(e){}
+
+  var saveT=0, fileT=0, fh=null, lsOK=true;
+  function setStat(msg,ok){var s=$('#savestat');s.textContent=msg;s.className='savestat'+(ok?' ok':'')}
+  function commit(){
+    DB.updatedAt=Date.now();
+    try{localStorage.setItem(LS,JSON.stringify(DB));lsOK=true;}catch(e){lsOK=false;}
+    setStat(lsOK?(fh?'저장됨 · 파일 연결 중':'저장됨 (이 브라우저)'):'브라우저 저장 실패 · 파일로 내보내세요',lsOK);
+    if(fh){clearTimeout(fileT);fileT=setTimeout(writeFile,500);}
+  }
+  function student(id){return DB.students.filter(function(s){return s.id===id})[0]}
+
+  /* ================= file connection (File System Access API) ================= */
+  var FSOK=('showSaveFilePicker' in window)&&('showOpenFilePicker' in window);
+  function idb(){return new Promise(function(res,rej){var r=indexedDB.open('wawa-study',1);r.onupgradeneeded=function(){r.result.createObjectStore('h')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
+  function idbGet(){return idb().then(function(db){return new Promise(function(res){var q=db.transaction('h').objectStore('h').get('file');q.onsuccess=function(){res(q.result||null)};q.onerror=function(){res(null)}})}).catch(function(){return null})}
+  function idbSet(h){return idb().then(function(db){return new Promise(function(res){var t=db.transaction('h','readwrite');t.objectStore('h').put(h,'file');t.oncomplete=function(){res()};t.onerror=function(){res()}})}).catch(function(){})}
+  var JSON_TYPES=[{description:'학습 기록 JSON',accept:{'application/json':['.json']}}];
+  function writeFile(){
+    if(!fh) return Promise.resolve();
+    return fh.createWritable().then(function(w){return w.write(JSON.stringify(DB)).then(function(){return w.close()})})
+      .then(function(){setStat('저장됨 · 파일 연결 중',true)})
+      .catch(function(){setStat('파일 저장 실패 · 다시 연결해 주세요',false)});
+  }
+  function backupNow(){try{localStorage.setItem(BK,JSON.stringify(DB))}catch(e){}}
+  function adopt(d){backupNow();DB=d;refreshAll();commit();}
+  function readHandle(h){return h.getFile().then(function(f){return f.text()}).then(function(t){return normalize(JSON.parse(t))})}
+  $('#fsNew').addEventListener('click',function(){
+    window.showSaveFilePicker({suggestedName:'학습기록.json',types:JSON_TYPES}).then(function(h){
+      fh=h;idbSet(h);return writeFile();
+    }).then(function(){renderData();toast('파일에 연결했어요')}).catch(function(e){if(e&&e.name!=='AbortError')toast('파일을 연결하지 못했어요')});
+  });
+  $('#fsOpen').addEventListener('click',function(){
+    window.showOpenFilePicker({types:JSON_TYPES}).then(function(hs){
+      var h=hs[0];
+      return readHandle(h).then(function(d){
+        if(!d){toast('학습 기록 파일이 아니에요');return;}
+        fh=h;idbSet(h);adopt(d);renderData();toast('파일을 불러와 연결했어요');
+      });
+    }).catch(function(e){if(e&&e.name!=='AbortError')toast('파일을 열지 못했어요')});
+  });
+  var savedHandle=null;
+  $('#fsRe').addEventListener('click',function(){
+    var h=savedHandle; if(!h) return;
+    h.requestPermission({mode:'readwrite'}).then(function(p){
+      if(p!=='granted'){toast('권한이 필요해요');return;}
+      return readHandle(h).then(function(d){
+        fh=h;
+        if(d&&d.updatedAt>DB.updatedAt){adopt(d);toast('파일의 최신 내용을 불러왔어요');}
+        else{writeFile();toast('연결했어요. 이 브라우저의 최신 내용을 파일에 저장했어요');}
+        renderData();
+      });
+    }).catch(function(){toast('다시 연결하지 못했어요')});
+  });
+  if(FSOK){idbGet().then(function(h){if(h){savedHandle=h;renderData();}})}
+
+  $('#dtExport').addEventListener('click',function(){
+    var d=new Date();
+    var blob=new Blob([JSON.stringify(DB,null,1)],{type:'application/json'});
+    download(blob,'학습기록_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'.json');
+    toast('내보냈어요');
+  });
+  $('#dtImportBtn').addEventListener('click',function(){$('#dtImport').click()});
+  $('#dtImport').addEventListener('change',function(){
+    var f=this.files[0]; var inp=this; if(!f) return;
+    var r=new FileReader();
+    r.onload=function(){
+      try{var d=normalize(JSON.parse(r.result));}catch(e){d=null;}
+      if(!d){toast('학습 기록 파일이 아니에요');}
+      else{adopt(d);renderData();toast('불러왔어요 ('+d.students.length+'명, 기록 '+d.logs.length+'건)');}
+      inp.value='';
+    };
+    r.readAsText(f);
+  });
+  function download(blob,name){
+    var url=URL.createObjectURL(blob);var a=document.createElement('a');
+    a.href=url;a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url)},1000);
+  }
+
+  /* ================= toast ================= */
+  var toastT=0;
+  function toast(m){var t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toastT);toastT=setTimeout(function(){t.style.display='none'},2600)}
+  function twoStep(btn,label,fn){
+    if(btn._t){clearTimeout(btn._t);btn._t=0;btn.textContent=btn._orig;fn();return;}
+    btn._orig=btn.textContent;btn.textContent=label;
+    btn._t=setTimeout(function(){btn._t=0;btn.textContent=btn._orig},3000);
+  }
+
+  /* ================= tabs ================= */
+  var curTab='';
+  function show(t){
+    curTab=t;
+    $$('.view').forEach(function(v){v.classList.toggle('on',v.id==='v-'+t)});
+    $$('.tab').forEach(function(b){b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false')});
+    if(t==='students') renderStudents();
+    if(t==='log') {fillSelects();loadLogForm();}
+    if(t==='report') {fillSelects();loadReport();}
+    if(t==='data') renderData();
+    try{sessionStorage.setItem('wawa-tab',t)}catch(e){}
+    window.scrollTo(0,0);
+  }
+  $$('.tab').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.tab)})});
+  function refreshAll(){fillSettings();renderStudents();show(curTab||'students')}
+
+  /* ================= students ================= */
+  var editId=null;
+  function fillSettings(){$('#stCenter').value=DB.settings.center||'';$('#stCoach').value=DB.settings.coach||''}
+  $('#stCenter').addEventListener('input',function(){DB.settings.center=this.value;commit()});
+  $('#stCoach').addEventListener('input',function(){DB.settings.coach=this.value;commit()});
+  function clearStForm(){
+    editId=null;['stName','stSchool','stGrade','stSubject','stSchedule'].forEach(function(i){$('#'+i).value=''});
+    $('#stFormTitle').textContent='학생 등록';$('#stCancel').style.display='none';
+  }
+  function renderStudents(){
+    fillSettings();
+    var box=$('#stList');
+    if(!DB.students.length){box.innerHTML='<div class="empty">등록된 학생이 없어요. 위에서 학생을 등록해 주세요.</div>';return;}
+    box.innerHTML=DB.students.map(function(s){
+      var n=DB.logs.filter(function(l){return l.studentId===s.id}).length;
+      return '<div class="item"><div class="grow"><b>'+esc(s.name)+'</b> <span class="tag">'+esc(s.grade||'-')+'</span>'+
+        '<div class="sub">'+esc([s.school,s.subject,s.schedule].filter(Boolean).join(' · '))+' · 기록 '+n+'건</div></div>'+
+        '<button class="btn small" data-a="edit" data-id="'+s.id+'" type="button">수정</button>'+
+        '<button class="btn small danger" data-a="del" data-id="'+s.id+'" type="button">삭제</button></div>';
+    }).join('');
+  }
+  $('#stSave').addEventListener('click',function(){
+    var name=$('#stName').value.trim();
+    if(!name){toast('이름을 입력해 주세요');return;}
+    var o={name:name,school:$('#stSchool').value.trim(),grade:$('#stGrade').value.trim(),subject:$('#stSubject').value.trim(),schedule:$('#stSchedule').value.trim()};
+    if(editId){var s=student(editId);if(s)Object.assign(s,o);}
+    else DB.students.push(Object.assign({id:uid()},o));
+    clearStForm();commit();renderStudents();toast('저장했어요');
+  });
+  $('#stCancel').addEventListener('click',clearStForm);
+  $('#stList').addEventListener('click',function(e){
+    var b=e.target.closest('[data-a]');if(!b)return;
+    var id=b.dataset.id,s=student(id);if(!s)return;
+    if(b.dataset.a==='edit'){
+      editId=id;$('#stName').value=s.name||'';$('#stSchool').value=s.school||'';$('#stGrade').value=s.grade||'';
+      $('#stSubject').value=s.subject||'';$('#stSchedule').value=s.schedule||'';
+      $('#stFormTitle').textContent='학생 수정';$('#stCancel').style.display='';window.scrollTo(0,0);
+    }else{
+      twoStep(b,'기록까지 삭제? 한 번 더',function(){
+        DB.students=DB.students.filter(function(x){return x.id!==id});
+        DB.logs=DB.logs.filter(function(l){return l.studentId!==id});
+        Object.keys(DB.reports).forEach(function(k){if(k.indexOf(id+'|')===0)delete DB.reports[k]});
+        if(editId===id)clearStForm();
+        commit();renderStudents();toast('삭제했어요');
+      });
+    }
+  });
+
+  function fillSelects(){
+    ['#lgStudent','#rpStudent'].forEach(function(sel){
+      var el=$(sel),cur=el.value;
+      el.innerHTML=DB.students.map(function(s){return '<option value="'+s.id+'">'+esc(s.name)+(s.grade?' ('+esc(s.grade)+')':'')+'</option>'}).join('');
+      if(cur&&student(cur))el.value=cur;
+    });
+    var shared=$('#lgStudent').value||$('#rpStudent').value;
+    if(shared){ if(!$('#lgStudent').value)$('#lgStudent').value=shared; if(!$('#rpStudent').value)$('#rpStudent').value=shared; }
+  }
+
+  /* ================= daily log ================= */
+  var SCI=['#sc0','#sc1','#sc2','#sc3'];
+  function findLog(sid,date){return DB.logs.filter(function(l){return l.studentId===sid&&l.date===date})[0]}
+  function lastBook(sid,date){
+    var ls=DB.logs.filter(function(l){return l.studentId===sid&&l.book&&l.date<date}).sort(function(a,b){return a.date<b.date?1:-1});
+    return ls[0]?ls[0].book:'';
+  }
+  function setScoreDisabled(){
+    var abs=$('#lgAtt').value==='결석';
+    SCI.forEach(function(s){$(s).disabled=abs});
+  }
+  function loadLogForm(){
+    var has=DB.students.length>0;
+    $('#lgEmpty').style.display=has?'none':'block';
+    $('#lgBody').style.display=has?'block':'none';
+    if(!has)return;
+    if(!$('#lgDate').value)$('#lgDate').value=todayISO();
+    var sid=$('#lgStudent').value,date=$('#lgDate').value;
+    var l=date?findLog(sid,date):null;
+    $('#lgPeriod').value=l?l.period||'':'';
+    $('#lgAtt').value=l?l.att||'출석':'출석';
+    $('#lgBook').value=l?l.book||'':lastBook(sid,date);
+    $('#lgProgress').value=l?l.progress||'':'';
+    $('#lgHomework').value=l?l.homework||'':'';
+    $('#lgNote').value=l?l.note||'':'';
+    SK.forEach(function(k,i){$(SCI[i]).value=l&&l.scores?l.scores[k]||'':''});
+    setScoreDisabled();
+    $('#lgStatus').textContent=l?'이미 저장된 기록이에요. 고쳐서 저장하면 수정돼요.':'새 기록';
+    $('#lgDelete').style.display=l?'':'none';
+    renderLogList();
+  }
+  function renderLogList(){
+    var sid=$('#lgStudent').value,date=$('#lgDate').value;
+    if(!sid||!date){$('#lgList').innerHTML='';return;}
+    var m=date.slice(0,7);
+    $('#lgListTitle').textContent=(+m.slice(5))+'월 기록';
+    var ls=DB.logs.filter(function(l){return l.studentId===sid&&l.date.slice(0,7)===m}).sort(function(a,b){return a.date<b.date?-1:1});
+    $('#lgList').innerHTML=ls.length?ls.map(function(l){
+      return '<div class="item'+(l.date===date?' sel':'')+'"><div class="grow"><b>'+fd(l.date)+'</b> '+
+        (l.att==='결석'?'<span class="tag abs">결석</span>':'<span class="tag">출석</span>')+
+        '<div class="sub">'+esc((l.progress||'').replace(/\n/g,' ')||'-')+'</div></div>'+
+        '<button class="btn small" data-date="'+l.date+'" type="button">열기</button></div>';
+    }).join(''):'<div class="empty">이 달의 기록이 아직 없어요.</div>';
+  }
+  $('#lgStudent').addEventListener('change',loadLogForm);
+  $('#lgDate').addEventListener('change',loadLogForm);
+  $('#lgAtt').addEventListener('change',setScoreDisabled);
+  $('#lgList').addEventListener('click',function(e){
+    var b=e.target.closest('[data-date]');if(!b)return;
+    $('#lgDate').value=b.dataset.date;loadLogForm();window.scrollTo(0,0);
+  });
+  $('#lgSave').addEventListener('click',function(){
+    var sid=$('#lgStudent').value,date=$('#lgDate').value;
+    if(!sid||!date){toast('학생과 날짜를 확인해 주세요');return;}
+    var scores={};
+    SK.forEach(function(k,i){var v=$(SCI[i]).value;scores[k]=($('#lgAtt').value==='결석')?'':v});
+    var o={studentId:sid,date:date,period:$('#lgPeriod').value.trim(),att:$('#lgAtt').value,book:$('#lgBook').value.trim(),
+      progress:$('#lgProgress').value.trim(),homework:$('#lgHomework').value.trim(),note:$('#lgNote').value.trim(),scores:scores};
+    var l=findLog(sid,date);
+    if(l)Object.assign(l,o);else DB.logs.push(Object.assign({id:uid()},o));
+    commit();loadLogForm();toast('기록을 저장했어요');
+  });
+  $('#lgDelete').addEventListener('click',function(){
+    var b=this,sid=$('#lgStudent').value,date=$('#lgDate').value;
+    twoStep(b,'정말 삭제? 한 번 더',function(){
+      DB.logs=DB.logs.filter(function(l){return !(l.studentId===sid&&l.date===date)});
+      commit();loadLogForm();toast('삭제했어요');
+    });
+  });
+
+  /* ================= monthly report ================= */
+  function monthLogs(sid,m){return DB.logs.filter(function(l){return l.studentId===sid&&l.date.slice(0,7)===m}).sort(function(a,b){return a.date<b.date?-1:1})}
+  function autoFor(sid,m){
+    var ls=monthLogs(sid,m),books=[],present=0,absent=0,sum=[0,0,0,0],cnt=[0,0,0,0];
+    ls.forEach(function(l){
+      var b=(l.book||'').trim();if(b&&books.indexOf(b)<0)books.push(b);
+      if(l.att==='결석'){absent++;return;}
+      present++;
+      SK.forEach(function(k,i){var v=parseFloat(l.scores&&l.scores[k]);if(!isNaN(v)){sum[i]+=v;cnt[i]++}});
+    });
+    var a={rows:ls,books:books.join(', '),days:String(ls.length),present:String(present),absent:String(absent)};
+    SK.forEach(function(k,i){a[k]=cnt[i]?fmt(sum[i]/cnt[i]):''});
+    return a;
+  }
+  function rkey(){return $('#rpStudent').value+'|'+$('#rpMonth').value}
+  function curRep(){return DB.reports[rkey()]||null}
+  function repVal(rep,auto,k){
+    if(AUTO.indexOf(k)>=0)return (rep&&rep.touched&&rep.touched[k])?rep[k]:auto[k];
+    if(k==='sendDate')return rep&&rep.sendDate!==undefined?rep.sendDate:todayKo();
+    if(k==='examMax')return rep&&rep.examMax!==undefined?rep.examMax:'20';
+    return rep&&rep[k]!==undefined?rep[k]:'';
+  }
+  function loadReport(){
+    var has=DB.students.length>0;
+    $('#rpEmpty').style.display=has?'none':'block';
+    $('#rpBody').style.display=has?'':'none';
+    if(!has)return;
+    var sid=$('#rpStudent').value;
+    if(!$('#rpMonth').value){
+      var ls=DB.logs.filter(function(l){return l.studentId===sid}).sort(function(a,b){return a.date<b.date?1:-1});
+      $('#rpMonth').value=ls[0]?ls[0].date.slice(0,7):todayISO().slice(0,7);
+    }
+    fillReportInputs();renderPreview();
+  }
+  function fillReportInputs(){
+    var auto=autoFor($('#rpStudent').value,$('#rpMonth').value),rep=curRep();
+    $$('[data-rf]').forEach(function(el){el.value=repVal(rep,auto,el.dataset.rf)});
+  }
+  $('#rpStudent').addEventListener('change',function(){
+    var sid=this.value;
+    var ls=DB.logs.filter(function(l){return l.studentId===sid}).sort(function(a,b){return a.date<b.date?1:-1});
+    if(ls[0])$('#rpMonth').value=ls[0].date.slice(0,7);
+    fillReportInputs();renderPreview();
+  });
+  $('#rpMonth').addEventListener('change',function(){fillReportInputs();renderPreview()});
+  $('#v-report').addEventListener('input',function(e){
+    var el=e.target,k=el.dataset.rf;if(!k)return;
+    var key=rkey();if(!$('#rpStudent').value||!$('#rpMonth').value)return;
+    var rep=DB.reports[key]||(DB.reports[key]={touched:{}});
+    if(!rep.touched)rep.touched={};
+    rep[k]=el.value;
+    if(AUTO.indexOf(k)>=0)rep.touched[k]=true;
+    commit();renderPreview();
+  });
+  $('#rpAuto').addEventListener('click',function(){
+    var rep=curRep();if(rep)rep.touched={};
+    commit();fillReportInputs();renderPreview();toast('매일 기록의 자동값으로 되돌렸어요');
+  });
+  $('#a4').addEventListener('change',renderPreview);
+
+  function buildState(){
+    var sid=$('#rpStudent').value,m=$('#rpMonth').value,st=student(sid)||{};
+    var auto=autoFor(sid,m),rep=curRep();
+    var V=function(k){return repVal(rep,auto,k)};
+    var rows=auto.rows.map(function(l){
+      var date=fd(l.date)+(l.period?'\n('+l.period+')':'');
+      var note=l.att==='결석'?('결석'+(l.note?' / '+l.note:'')):l.note;
+      return {date:date,progress:l.progress||'',homework:l.homework||'',note:note||''};
+    });
+    var items=[];
+    SK.forEach(function(k,i){var v=V(k);if(String(v).trim()!=='')items.push({label:LABELS[i],score:v,max:'10'})});
+    return {
+      center:DB.settings.center||'',sendDate:V('sendDate'),coach:DB.settings.coach||'',
+      student:{name:st.name||'',school:st.school||'',grade:st.grade||'',subject:st.subject||'',schedule:st.schedule||''},
+      log:{month:m?(+m.slice(5))+'월':'',books:V('books'),rows:rows},
+      exam:{date:V('examDate'),range:V('examRange'),level:V('examLevel'),score:V('examScore'),max:V('examMax')},
+      eval:{days:V('days'),present:V('present'),absent:V('absent'),items:items},
+      feedback:{goal:V('goal'),good:V('good'),improve:V('improve')}
+    };
+  }
+
+  /* ---------- report template ---------- */
+  var page=$('#page'),scaler=$('#scaler'),wrap=$('#wrap'),stage=$('#stage');
+  var waveD=(function(){var d='M0,0 H1122 V2 ';var n=Math.ceil(1122/42);for(var i=0;i<n;i++){d+=' q-10.5,13 -21,0 t-21,0'}return d+' V0 Z'})();
+  var bunting='<svg class="bunting" width="290" height="140" viewBox="0 0 290 140" aria-hidden="true">'+
+    '<path d="M-5 70 Q120 85 262 2" fill="none" stroke="#fff" stroke-width="3"/>'+
+    '<polygon points="0,68 38,76 14,112" fill="#ffc400"/><polygon points="42,76 80,86 58,120" fill="#1b8a8a"/>'+
+    '<polygon points="84,84 122,82 106,122" fill="#4fb7ea"/><polygon points="128,76 166,64 156,106" fill="#ffc400"/>'+
+    '<polygon points="172,58 208,42 204,84" fill="#4fb7ea"/><polygon points="214,38 244,18 246,56" fill="#1b8a8a"/></svg>';
+  var kids='<svg class="kids" width="280" height="150" viewBox="0 0 280 150" aria-hidden="true">'+
+    '<g transform="rotate(-6 140 100)"><rect x="40" y="86" width="230" height="34" rx="4" fill="#f08a24"/><rect x="40" y="86" width="230" height="10" fill="#f6b25c"/>'+
+    '<polygon points="40,86 40,120 4,103" fill="#f3d3a2"/><polygon points="14,98 14,108 4,103" fill="#333"/></g>'+
+    '<g><circle cx="86" cy="52" r="17" fill="#f6c9a0"/><path d="M69 48 Q86 28 103 48 Z" fill="#3b2a1f"/><rect x="72" y="68" width="30" height="30" rx="8" fill="#4aa3df"/></g>'+
+    '<g><circle cx="150" cy="40" r="17" fill="#f6c9a0"/><path d="M133 38 Q150 16 167 38 Z" fill="#3b2a1f"/><rect x="136" y="56" width="30" height="34" rx="8" fill="#ffc400"/></g>'+
+    '<g><circle cx="218" cy="56" r="17" fill="#f6c9a0"/><path d="M201 52 Q218 32 235 52 Z" fill="#3b2a1f"/><rect x="204" y="72" width="30" height="30" rx="8" fill="#8e6fd1"/><path d="M236 40 V8 L262 18 L236 26" fill="#e8504a"/><line x1="236" y1="8" x2="236" y2="50" stroke="#fff" stroke-width="2"/></g></svg>';
+  var iconPerson='<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="#fff"/><circle cx="20" cy="15" r="7" fill="#f6c9a0"/><path d="M12 13 Q20 2 28 13 Q20 9 12 13Z" fill="#3b2a1f"/><path d="M7 36 Q20 20 33 36 Z" fill="#ffc400"/></svg>';
+  var iconCal='<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect x="3" y="7" width="34" height="30" rx="4" fill="#fff"/><rect x="3" y="7" width="34" height="9" rx="4" fill="#2e9d6b"/><g fill="#9cc3e6"><rect x="8" y="20" width="5" height="4"/><rect x="17" y="20" width="5" height="4"/><rect x="26" y="20" width="5" height="4"/><rect x="8" y="28" width="5" height="4"/><rect x="17" y="28" width="5" height="4"/></g></svg>';
+
+  function tpl(s){
+    var rows=s.log.rows.map(function(r){
+      return '<tr><td class="c">'+esc(r.date)+'</td><td>'+esc(r.progress)+'</td><td>'+esc(r.homework)+'</td><td>'+esc(r.note)+'</td></tr>';
+    }).join('');
+    var books=s.log.books?'<tr class="bk"><th>수업교재</th><td colspan="3">'+esc(s.log.books)+'</td></tr>':'';
+    var st=s.student,ex=s.exam,ev=s.eval,fb='';
+    if(s.feedback.goal)fb+='<p>이달의 목표 – '+esc(s.feedback.goal)+'</p>';
+    if(s.feedback.good)fb+='<p>잘한 점 : '+esc(s.feedback.good)+'</p>';
+    if(s.feedback.improve)fb+='<p>개선할 점 : '+esc(s.feedback.improve)+'</p>';
+    var exH='';
+    if(ex.date)exH+='<div>&lt;평가 시행일&gt; '+esc(ex.date)+'</div>';
+    if(ex.range)exH+='<div>&lt;평가 범위&gt;</div><div class="rng">'+esc(ex.range)+'</div>';
+    if(ex.level)exH+='<div>&lt;난이도&gt;</div><div><b>'+esc(ex.level)+'</b></div>';
+    if(ex.score)exH+='<div>&lt;평가결과(점수)&gt;</div><div class="big">'+esc(ex.score)+(ex.max?' <span style="font-weight:500;font-size:30px">/ '+esc(ex.max)+'</span>':'')+'</div>';
+    var items=ev.items.map(function(it){return '<div class="sc">'+esc(it.label)+' :<em>'+esc(it.score)+' /'+esc(it.max)+'점</em></div>'}).join('');
+    return '<div class="hd"><div class="top"><span class="center">'+esc(s.center)+'</span><span class="sent">발송일 : '+esc(s.sendDate)+'</span></div>'+
+      bunting+'<div class="title">학습 안내문</div><div class="coach">담당 코치 : '+esc(s.coach)+'</div>'+kids+
+      '<svg class="wave" viewBox="0 0 1122 14" preserveAspectRatio="none" aria-hidden="true"><path d="'+waveD+'" fill="#00569f"/></svg></div>'+
+      '<div class="main"><div class="left">'+
+        '<div class="sec"><div class="pill">'+esc(s.log.month)+' 학습 일지</div>'+
+          '<table class="log"><colgroup><col style="width:13%"><col style="width:24%"><col style="width:24%"><col style="width:39%"></colgroup>'+
+          '<thead>'+books+'<tr><th>날짜</th><th>진도</th><th>숙제</th><th>수업태도/집중도 및 특이사항</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="sec"><div class="pill">학습 피드백</div><div class="fb">'+fb+'</div></div>'+
+      '</div><div class="right">'+
+        '<div class="card"><div class="rib">'+iconPerson+'<span>학생 정보</span></div><div class="body stu">'+
+          '<div>이 름 : '+esc(st.name)+'</div><div>학 교 : '+esc(st.school)+'</div><div>학 년 : '+esc(st.grade)+'</div><div>과 목 : '+esc(st.subject)+'</div><div>등원정보 : '+esc(st.schedule)+'</div></div></div>'+
+        '<div class="card"><div class="rib">'+iconPerson+'<span>월 평가 결과</span></div><div class="body exam">'+exH+'</div></div>'+
+        '<div class="card"><div class="rib">'+iconCal+'<span>학습평가</span></div><div class="body ev">'+
+          '<div class="b">수업일수 : '+esc(ev.days)+'일</div><div class="b">출석 : '+esc(ev.present)+'일 / 결석 : '+esc(ev.absent)+'일</div>'+items+'<div class="smile">☺</div></div></div>'+
+      '</div></div>';
+  }
+
+  var raf=0;
+  function renderPreview(){
+    cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(function(){
+      if(!DB.students.length||!$('#rpStudent').value)return;
+      page.style.minHeight=$('#a4').checked?'1587px':'0';
+      page.innerHTML=tpl(buildState());
+      fit();
+    });
+  }
+  function fit(){
+    var w=stage.clientWidth-24;if(w<=0)return;
+    var s=Math.min(1,Math.max(0.2,w/1122));
+    scaler.style.transform='scale('+s+')';
+    wrap.style.width=(1122*s)+'px';
+    wrap.style.height=(page.offsetHeight*s)+'px';
+  }
+  if(window.ResizeObserver){new ResizeObserver(fit).observe(stage);new ResizeObserver(fit).observe(page);}
+  window.addEventListener('resize',fit);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);
+
+  /* ---------- export image ---------- */
+  function capture(){
+    if(typeof html2canvas==='undefined')return Promise.reject(new Error('lib'));
+    var prevT=scaler.style.transform,prevO=wrap.style.overflow;
+    return (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){
+      scaler.style.transform='none';wrap.style.overflow='visible';
+      return new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})});
+    }).then(function(){
+      return html2canvas(page,{scale:1.5,backgroundColor:'#f2f3f5',useCORS:true,logging:false,scrollX:0,scrollY:0});
+    }).then(function(c){scaler.style.transform=prevT;wrap.style.overflow=prevO;return c},
+            function(e){scaler.style.transform=prevT;wrap.style.overflow=prevO;throw e});
+  }
+  function fileName(){
+    var st=student($('#rpStudent').value)||{},m=$('#rpMonth').value;
+    return ((st.name||'학생')+'_'+(m?(+m.slice(5))+'월':'')+'_학습안내문.png').replace(/[\\\/:*?"<>|\s]+/g,'');
+  }
+  function doExport(mode){
+    var btns=[$('#save'),$('#openImg')];btns.forEach(function(b){b.disabled=true});
+    var lbl=$('#save').textContent;$('#save').textContent='만드는 중…';
+    capture().then(function(c){
+      if(mode==='open'){$('#modalImg').src=c.toDataURL('image/png');$('#modal').style.display='flex';return;}
+      c.toBlob(function(b){download(b,fileName());toast('이미지를 저장했어요')},'image/png');
+    }).catch(function(){toast('이미지를 만들지 못했어요. 인터넷 연결을 확인해 주세요.')})
+    .then(function(){btns.forEach(function(b){b.disabled=false});$('#save').textContent=lbl});
+  }
+  $('#save').addEventListener('click',function(){doExport('save')});
+  $('#openImg').addEventListener('click',function(){doExport('open')});
+  $('#modalClose').addEventListener('click',function(){$('#modal').style.display='none'});
+
+  /* ================= data tab ================= */
+  function renderData(){
+    $('#dtCount').textContent='학생 '+DB.students.length+'명 · 수업 기록 '+DB.logs.length+'건 · 월말 안내문 '+Object.keys(DB.reports).length+'건';
+    $('#dtFS').style.display=FSOK?'':'none';
+    $('#dtFileName').textContent=fh?'연결된 파일: '+(fh.name||''):(savedHandle?'이전에 연결한 파일이 있어요: '+(savedHandle.name||''):'연결된 파일이 없어요');
+    $('#fsRe').style.display=(!fh&&savedHandle)?'':'none';
+  }
+
+  /* ================= init ================= */
+  var t0='students';
+  try{t0=sessionStorage.getItem('wawa-tab')||(DB.students.length?'log':'students')}catch(e){t0=DB.students.length?'log':'students'}
+  fillSettings();
+  show(t0);
+  setStat(lsOK?'저장됨 (이 브라우저)':'',true);
+})();
+</script>
+</body>
+</html>
